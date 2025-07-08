@@ -1,0 +1,62 @@
+services:
+
+  appserver1:
+    build: ./appserver1
+    container_name: appserver1
+    networks:
+      ha_net:
+        ipv4_address: 172.28.0.11
+
+  appserver2:
+    build: ./appserver2
+    container_name: appserver2
+    networks:
+      ha_net:
+        ipv4_address: 172.28.0.12
+
+  haproxy1:
+    build: ./haproxy-custom
+    container_name: haproxy1
+    volumes:
+      - ./haproxy-custom/haproxy.cfg:/etc/haproxy/haproxy.cfg:ro
+      - ./ssl:/etc/ssl/private:ro
+      - ./haproxy-custom/keepalived-master.conf:/etc/keepalived/keepalived.conf:ro
+    networks:
+      ha_net:
+        ipv4_address: 172.28.0.100
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    ports:
+      - "8443:443"
+
+  haproxy2:
+    build: ./haproxy-custom
+    container_name: haproxy2
+    volumes:
+      - ./haproxy-custom/haproxy.cfg:/etc/haproxy/haproxy.cfg:ro
+      - ./ssl:/etc/ssl/private:ro
+      - ./haproxy-custom/keepalived-backup.conf:/etc/keepalived/keepalived.conf:ro
+    networks:
+      ha_net:
+        ipv4_address: 172.28.0.101
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+
+  waf:
+    build: ./waf
+    container_name: waf
+    networks:
+      ha_net:
+        ipv4_address: 172.28.0.20
+    depends_on:
+      - appserver1
+      - appserver2
+
+networks:
+  ha_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
